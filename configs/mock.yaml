@@ -1,0 +1,18 @@
+# Mock line (Phase 0): phone video of our own table-top tray line.
+plant: "Mock line (UPenn)"
+line: "Line 1"
+crew_size: 4                 # people on the line
+loaded_rate_per_hour: 27     # $/hr per person, wages + benefits + overhead
+shift_hours: 8
+work_days_per_year: 250
+
+cameras:
+  cam3:
+    role: end                # counts finished trays (throughput)
+    footage: ../footage/mock # a video file or a folder of them
+    # Phone videos: set the wall-clock time recording started, or pass --start.
+    # start: "2026-11-28 14:00:00"
+
+stoppage:
+  min_gap_s: 15              # never call a gap shorter than this a stoppage
+  gap_multiple: 2.0          # ...or shorter than 2x the normal time per tray

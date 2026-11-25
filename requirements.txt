@@ -1,0 +1,7 @@
+opencv-python>=4.9
+numpy
+pandas
+pyyaml
+jinja2
+matplotlib
+pytest

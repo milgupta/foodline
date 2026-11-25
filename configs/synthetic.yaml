@@ -1,0 +1,10 @@
+# Synthetic test line made by tools/make_synthetic.py (known ground truth).
+plant: "Synthetic test line"
+line: "Line 1"
+crew_size: 6
+loaded_rate_per_hour: 27
+
+cameras:
+  cam3:
+    role: end
+    footage: ../footage/synthetic

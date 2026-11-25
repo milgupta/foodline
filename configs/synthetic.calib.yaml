@@ -1,0 +1,11 @@
+# Written by `run.py calibrate`. Coordinates are 0..1 of frame width/height.
+cam3:
+  count_line:
+  - [0.82, 0.33]
+  - [0.82, 0.67]
+  belt_zone:
+  - [0.0, 0.347]
+  - [1.0, 0.347]
+  - [1.0, 0.653]
+  - [0.0, 0.653]
+  frame_size: [1280, 720]

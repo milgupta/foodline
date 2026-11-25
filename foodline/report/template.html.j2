@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Line Loss Report · {{ cfg.plant }} · {{ cfg.line }} · {{ meta.day }}</title>
+<style>
+  @page { size: Letter; margin: 0.55in 0.6in; }
+  :root { --ink:#1f2933; --muted:#6b7785; --line:#e6e9ee; --accent:#2f6fdf; --loss:#d64545; --soft:#f5f7fa; }
+  * { box-sizing: border-box; }
+  body { font: 10.5pt/1.45 -apple-system, "Helvetica Neue", Helvetica, Arial, sans-serif; color: var(--ink);
+         max-width: 8.2in; margin: 24px auto; padding: 0 16px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  @media print { body { margin: 0; padding: 0; } }
+  header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid var(--ink);
+           padding-bottom: 8px; margin-bottom: 14px; }
+  h1 { font-size: 20pt; margin: 0; letter-spacing: -0.01em; }
+  .sub { color: var(--muted); font-size: 9.5pt; }
+  .brand { text-align: right; font-size: 9pt; color: var(--muted); }
+  .brand b { color: var(--ink); font-size: 10pt; }
+  h2 { font-size: 11.5pt; margin: 20px 0 6px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .headline { font-size: 12.5pt; line-height: 1.5; margin: 4px 0 14px; }
+  .headline strong { color: var(--loss); }
+  .kpis { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
+  .kpi { background: var(--soft); border-radius: 6px; padding: 8px 10px; }
+  .kpi .v { font-size: 15pt; font-weight: 650; font-variant-numeric: tabular-nums; }
+  .kpi .l { font-size: 8pt; color: var(--muted); line-height: 1.25; }
+  .kpi.loss .v { color: var(--loss); }
+  .chart svg { width: 100%; height: auto; display: block; }
+  .legend { font-size: 8pt; color: var(--muted); margin-top: 2px; }
+  .swatch { display: inline-block; width: 9px; height: 9px; border-radius: 2px; vertical-align: -1px; margin: 0 3px 0 10px; }
+  table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+  th { text-align: left; font-size: 8pt; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted);
+       font-weight: 600; border-bottom: 1px solid var(--ink); padding: 4px 6px; }
+  td { border-bottom: 1px solid var(--line); padding: 5px 6px; vertical-align: top; }
+  td.n, th.n { text-align: right; }
+  .rank { font-weight: 700; color: var(--loss); width: 22px; }
+  .bar { height: 6px; background: var(--loss); border-radius: 3px; margin-top: 3px; opacity: .75; }
+  .box { border: 1px solid var(--line); border-left: 4px solid var(--accent); border-radius: 4px; padding: 8px 12px; margin: 6px 0; }
+  .box.todo { border-left-color: #e0a100; background: #fffbea; }
+  .box b { display: block; font-size: 8.5pt; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+  .stops td.img { width: 150px; }
+  .stops img { width: 140px; border-radius: 4px; display: block; }
+  .tag { display: inline-block; font-size: 8pt; padding: 1px 6px; border-radius: 9px; background: var(--soft); color: var(--muted); }
+  .tag.cause { background: #fde8e8; color: #9b2c2c; }
+  .tag.none { background: #fff3c4; color: #8a6100; }
+  .method { font-size: 8.5pt; color: var(--muted); columns: 2; column-gap: 24px; }
+  .method p { margin: 0 0 6px; break-inside: avoid; }
+  .pb { break-before: page; }
+  .avoid { break-inside: avoid; }
+  footer { margin-top: 18px; font-size: 8pt; color: var(--muted); border-top: 1px solid var(--line); padding-top: 6px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Line Loss Report</h1>
+    <div class="sub">{{ cfg.plant }} · {{ cfg.line }} · {{ date }} · {{ window }} ({{ footage }} of footage)</div>
+  </div>
+  <div class="brand"><b>Food-Line Cameras</b><br>Per station, never per person</div>
+</header>
+
+{% if n_unreviewed %}
+<div class="box todo"><b>Draft</b>{{ n_unreviewed }} of {{ stops|length }} stoppages have no cause yet. Fill in the <code>cause</code> column in stoppages.csv and re-run the report.</div>
+{% endif %}
+
+<p class="headline">
+  {% if stops %}
+  The line stopped <strong>{{ kpi.stops }} time{{ '' if kpi.stops == 1 else 's' }}</strong> and lost
+  <strong>{{ kpi.lost }}</strong> ({{ kpi.lost_pct }} of the time), about <strong>{{ kpi.cost }}</strong> in paid crew time
+  and ~{{ kpi.trays_missed }} trays not made.
+  If this repeats every shift, that is <strong>{{ kpi.per_shift }} per {{ cfg.shift_hours }}-hour shift</strong>, or
+  about <strong>{{ kpi.per_year }} a year</strong> on this line.
+  {% else %}
+  No stoppages longer than {{ threshold }} in {{ footage }} of footage. The line ran at {{ kpi.avg_tpm }} trays per minute.
+  {% endif %}
+</p>
+
+<div class="kpis">
+  <div class="kpi"><div class="v">{{ kpi.trays }}</div><div class="l">trays counted</div></div>
+  <div class="kpi"><div class="v">{{ kpi.avg_tpm }}</div><div class="l">trays / min, average</div></div>
+  <div class="kpi"><div class="v">{{ kpi.normal_tpm }}</div><div class="l">trays / min when running normally</div></div>
+  <div class="kpi loss"><div class="v">{{ kpi.stops }}</div><div class="l">stoppages over {{ threshold }}</div></div>
+  <div class="kpi loss"><div class="v">{{ kpi.lost }}</div><div class="l">time lost</div></div>
+  <div class="kpi loss"><div class="v">{{ kpi.cost }}</div><div class="l">crew cost of lost time</div></div>
+</div>
+
+<h2>Throughput</h2>
+<div class="chart">{{ chart_throughput|safe }}</div>
+<div class="legend"><span class="swatch" style="background:#2f6fdf"></span>trays per minute
+  <span class="swatch" style="background:#d64545;opacity:.35"></span>stoppage
+  {% if kpi.normal_tpm != '–' %}<span style="margin-left:10px">- - normal pace ({{ kpi.normal_tpm }}/min)</span>{% endif %}</div>
+{% if chart_timeline %}<div class="chart" style="margin-top:6px">{{ chart_timeline|safe }}</div>{% endif %}
+
+{% if groups %}
+<h2>Top losses</h2>
+<table class="avoid">
+  <tr><th></th><th>Loss</th><th class="n">Stops</th><th class="n">Time lost</th><th class="n">Cost</th><th style="width:28%">Share of lost time</th></tr>
+  {% for g in groups %}
+  <tr><td class="rank">{{ loop.index }}</td><td>{{ g.label }} <span class="sub">({{ g.ids }})</span></td>
+      <td class="n">{{ g.count }}</td><td class="n">{{ g.lost }}</td><td class="n">{{ g.cost }}</td>
+      <td>{{ g.share }}%<div class="bar" style="width:{{ g.share }}%"></div></td></tr>
+  {% endfor %}
+</table>
+{% if more_groups %}<div class="sub">+ {{ more_groups }} smaller loss{{ 'es' if more_groups > 1 else '' }} in the stoppage log.</div>{% endif %}
+{% endif %}
+
+{% if notes.bottleneck or notes.recommended_change or notes.observations %}
+<h2>What we'd change</h2>
+{% if notes.bottleneck %}<div class="box"><b>Bottleneck station</b>{{ notes.bottleneck }}</div>{% endif %}
+{% if notes.recommended_change %}<div class="box"><b>Recommended change</b>{{ notes.recommended_change }}</div>{% endif %}
+{% if notes.observations %}<ul>{% for o in notes.observations %}<li>{{ o }}</li>{% endfor %}</ul>{% endif %}
+{% endif %}
+
+{% if hourly|length > 1 %}
+<h2>By hour</h2>
+<table class="avoid">
+  <tr><th>Hour</th><th class="n">Trays</th><th class="n">Minutes filmed</th><th class="n">Trays / min</th></tr>
+  {% for h in hourly %}<tr><td>{{ h.hour }}</td><td class="n">{{ h.trays }}</td><td class="n">{{ h.minutes }}</td><td class="n">{{ h.tpm }}</td></tr>{% endfor %}
+</table>
+{% endif %}
+
+{% if stops %}
+<h2 class="{{ 'pb' if stops|length > 2 else '' }}">Stoppage log</h2>
+<table class="stops">
+  <tr><th>#</th><th>Started</th><th class="n">Belt gap</th><th class="n">Lost</th><th class="n">Cost</th><th>Cause</th><th>Frame (blurred)</th></tr>
+  {% for s in stops %}
+  <tr class="avoid">
+    <td><b>{{ s.id }}</b></td><td>{{ s.start }}</td><td class="n">{{ s.gap }}</td><td class="n">{{ s.lost }}</td><td class="n">{{ s.cost }}</td>
+    <td>{% if s.cause %}<span class="tag cause">{{ s.cause }}</span>{% else %}<span class="tag none">not reviewed</span>{% endif %}
+        {% if s.kind != 'stoppage' %}<br><span class="tag">{{ s.kind }}</span>{% endif %}
+        {% if s.note %}<div class="sub" style="margin-top:3px">{{ s.note }}</div>{% endif %}</td>
+    <td class="img">{% if s.thumb %}<img src="{{ s.thumb }}" alt="frame from {{ s.id }}">{% endif %}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% endif %}
+
+<h2>How we measured</h2>
+<div class="method">
+  <p><b>Counting.</b> A camera over the end of the line counts every tray crossing a fixed line on the belt.
+     Method: {{ meta.method }}.{% if meta.merged_events %} {{ meta.merged_events }} time(s) two or more touching trays were counted from their size.{% endif %}</p>
+  <p><b>Stoppage.</b> Any gap between finished trays longer than {{ threshold }}: twice the normal cycle of {{ cycle }} per tray,
+     and never under {{ cfg.stoppage.min_gap_s }}s. Lost time = the gap minus one normal cycle.
+     Gaps before the first tray, after the last, or across missing footage are not counted.</p>
+  <p><b>Cost.</b> Lost minutes × {{ cfg.crew_size }} people on the line × {{ cur }}{{ '%.0f'|format(cfg.loaded_rate_per_hour) }}/hr loaded labor cost.
+     Yearly figure = this footage's loss rate × {{ cfg.shift_hours }}-hour shift × {{ cfg.work_days_per_year }} days.
+     {% if short_footage %}<b>Under an hour of footage: treat the projection as an illustration, not a forecast.</b>{% endif %}</p>
+  <p><b>Accuracy.</b>
+     {% if accuracy %}Checked against a hand count of {{ accuracy.hand_total }} trays over {{ accuracy.window }}:
+        camera count {{ accuracy.auto_total }} ({{ '%+.1f'|format(accuracy.error_pct) }}%), {{ accuracy.matched }} of {{ accuracy.hand_total }} trays matched within {{ accuracy.tolerance_s }}s.
+     {% else %}Not yet checked against a hand count for this footage.{% endif %}</p>
+  <p><b>Privacy.</b> Everything outside the belt is blurred in every image. Results are per line and per station, never per person.
+     Footage stays on site and is deleted after 30 days.</p>
+</div>
+
+<footer>Generated {{ generated }} · camera {{ meta.camera }} · {{ meta.segments|length }} video file(s) · Food-Line Cameras</footer>
+</body>
+</html>
